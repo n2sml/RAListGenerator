@@ -1,0 +1,24 @@
+{
+  "name": "rapsxloader",
+  "version": "1.0.0",
+  "description": "Generates a JSON with all PSX games with achievements",
+  "main": "index.js",
+  "scripts": {
+    "test": "teste",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "RA",
+    "RetroAchievements",
+    "retroachievements"
+  ],
+  "author": "n2sml",
+  "license": "ISC",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "fs": "^0.0.1-security",
+    "got": "11.8.5",
+    "https": "^1.0.0",
+    "jsdom": "^20.0.2"
+  }
+}
