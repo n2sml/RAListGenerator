@@ -1,136 +1,182 @@
-const fs = require('fs')
-const got = require('got')
-const jsdom = require("jsdom")
-const { JSDOM } = jsdom
+const fs = require("fs");
+const got = require("got");
+const jsdom = require("jsdom");
+const { JSDOM } = jsdom;
 
-const URL_ACHIEVEMENTS = 'https://retroachievements.org/gameList.php?c=12'
-const QUERY_SELECTOR_ACHIEVEMENTS = '.table-wrapper td.w-full a'
-const FILE_GAMES_WITH_ACHIEVEMENTS = 'psxGamesWithAchievements.json'
+const URL_ACHIEVEMENTS = "https://retroachievements.org/gameList.php?c=12";
+const QUERY_SELECTOR_ACHIEVEMENTS = ".table-wrapper td.w-full a";
+const FILE_GAMES_WITH_ACHIEVEMENTS = "psxGamesWithAchievements.json";
 
-const URL_ARCHIVES = 'https://archive.org/download/chd_psx/CHD-PSX-USA/'
-const QUERY_SELECTOR_ARCHIVES = '.directory-listing-table a'
-const FILE_GAMES_WITH_LINKS = 'psxGamesWithLinks.json'
+const URL_ARCHIVES = "https://archive.org/download/chd_psx/CHD-PSX-USA/";
+const QUERY_SELECTOR_ARCHIVES = ".directory-listing-table a";
+const FILE_GAMES_WITH_ARCHIVES = "psxGamesWithLinks.json";
 
-const FILE_GAMES_WITH_MATCH_LIST = 'matchList.json'
+const FILE_GAMES_WITH_MATCH_LIST = "matchList.json";
 
 function simplify(name) {
-    name = name.split(",")[0]
-    const clearName = name.toUpperCase()
-        .replaceAll("IX", "9")
-        .replaceAll("VIII", "8")
-        .replaceAll("VII", "7")
-        .replaceAll("III", "3")
-        .replaceAll("II", "2")
-        //.replaceAll("Rev 1", "")
-        .replaceAll("CHD", "")
-        .replaceAll("(USA)", "")
-        .replaceAll("(EN,FR,DE,ES,IT)", "")
-        //.replaceAll("(Beta)chd", "")
-        //.replaceAll("(EnEs)chd", "")
-        .replaceAll("(USA)CHD", "")
-        .replaceAll("(EN,JA,FR,DE)", "")
-        .replaceAll("2ND", "SECOND")
-        //.replaceAll("(Unl)chd", "")
-        .replaceAll("DISC 1", "")
-        .replaceAll("DISC 2", "")
-        .replaceAll("DISC 3", "")
-        .replaceAll("DISC 4", "")
-        .replaceAll("|", "")
-        .replaceAll(":", "")
-        .replaceAll("&", "")
-        .replaceAll(",", "")
-        .replaceAll(".", "")
-        .replaceAll("'", "")
-        .replaceAll("-", "")
-        .replaceAll("!", "")
-        .replaceAll("(", "")
-        .replaceAll(")", "")
-        .replaceAll("[", "")
-        .replaceAll("]", "")
-        .replaceAll(" ", "")
-    return clearName
+  // Remover nome alternativo
+  name = name.split("|")[0];
+
+  let clearName = name
+    //Em uma coleção pode haver numeros e outra algarismos romanos
+    .replaceAll("IX", "9")
+    .replaceAll("VIII", "8")
+    .replaceAll("VII", "7")
+    .replaceAll("III", "3")
+    .replaceAll("II", "2")
+    .replaceAll("IV", "4")
+
+    .toUpperCase()
+
+    // Extensões e versões
+    .replaceAll("CHD", "")
+    .replaceAll("(USA)", "")
+    .replaceAll("(EN,FR,DE,ES,IT)", "")
+    .replaceAll("(EN,FR,ES)", "")
+    .replaceAll("(USA)CHD", "")
+    .replaceAll("(EN,JA,FR,DE)", "")
+    .replaceAll("(EN,FR,DE,SV)", "")
+    .replaceAll("2ND", "SECOND")
+    .replaceAll("(Arcade Disc)", "")
+
+  // Tratar o caso de "Bugs Life, A" e "Smurfs, The"
+  if (clearName.split(",").length > 1) {
+    clearName = clearName.split(",")[1] + clearName.split(",")[0];
+  }
+
+  return clearName
+    // Discos
+    .replaceAll("DISC 1", "")
+    .replaceAll("DISC 2", "")
+    .replaceAll("DISC 3", "")
+    .replaceAll("DISC 4", "")
+
+    // Prefixos que podem atrapalhar
+    .replaceAll("WALT", "")
+    .replaceAll("DISNEYS", "")
+    .replaceAll("DISNEY'S", "")
+    .replaceAll("DISNEY", "")
+    .replaceAll("PIXAR", "")
+
+    // Caracteres em geral
+    .replaceAll("|", "")
+    .replaceAll(":", "")
+    .replaceAll("&", "")
+    .replaceAll(",", "")
+    .replaceAll(".", "")
+    .replaceAll("'", "")
+    .replaceAll("-", "")
+    .replaceAll("!", "")
+    .replaceAll("(", "")
+    .replaceAll(")", "")
+    .replaceAll("[", "")
+    .replaceAll("]", "")
+    .replaceAll(" ", "")
 }
 
-got(URL_ACHIEVEMENTS).then(response => {
-    const dom = new JSDOM(response.body);
-    let collection = { games: [] }
-    let elements = dom.window.document.querySelectorAll(QUERY_SELECTOR_ACHIEVEMENTS)
-
-    elements.forEach(item => {
-        console.log(item)
-        collection.games.push({
-            name: item.textContent,
-            keywords: simplify(item.textContent),
-        })
+function loadAchievements() {
+  return got(URL_ACHIEVEMENTS)
+    .then((response) => {
+      return new JSDOM(response.body);
     })
-
-    fs.writeFile(FILE_GAMES_WITH_ACHIEVEMENTS, JSON.stringify(collection, null, 2), (err) => {
-        if (err) throw err;
-    });
-}).catch(err => {
-    console.log(err);
-});
-
-got(URL_ARCHIVES).then(response => {
-    const dom = new JSDOM(response.body);
-    let collection = { games: [] }
-    let elements = dom.window.document.querySelectorAll(QUERY_SELECTOR_ARCHIVES)
-
-    elements.forEach(item => {
-        collection.games.push({
-            name: item.textContent,
-            keywords: simplify(item.textContent),
-            url: URL_ARCHIVES + item.href
-        })
+    .then((dom) => {
+      let elements = dom.window.document.querySelectorAll(
+        QUERY_SELECTOR_ACHIEVEMENTS
+      );
+      return elements;
     })
-
-    // Go to parent directory
-    collection.games.shift()
-
-    fs.writeFile(FILE_GAMES_WITH_LINKS, JSON.stringify(collection, null, 2), (err) => {
-        if (err) throw err;
+    .then((elements) => {
+      let collection = { games: [] };
+      elements.forEach((item) => {
+        collection.games.push({
+          name: item.textContent,
+          keywords: simplify(item.textContent),
+        });
+      });
+      return collection;
+    })
+    .catch((err) => {
+      console.error(err);
     });
-}).catch(err => {
-    console.log(err);
-});
+}
 
+function loadArchives() {
+  return got(URL_ARCHIVES)
+    .then((response) => {
+      return new JSDOM(response.body);
+    })
+    .then((dom) => {
+      let elements = dom.window.document.querySelectorAll(
+        QUERY_SELECTOR_ARCHIVES
+      );
+      return elements;
+    })
+    .then((elements) => {
+      let collection = { games: [] };
+      elements.forEach((item) => {
+        collection.games.push({
+          name: item.textContent,
+          keywords: simplify(item.textContent),
+          url: URL_ARCHIVES + item.href,
+        });
+      });
+      return collection;
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+}
 
-let gamesWithAchievements = JSON.parse(fs.readFileSync(FILE_GAMES_WITH_ACHIEVEMENTS));
-let gamesWithLinks = JSON.parse(fs.readFileSync(FILE_GAMES_WITH_LINKS));
+function doMissAndMatch(arr) {
+  const achievements = arr[0];
+  const archives = arr[1];
+  let missList = { games: [] };
+  let matchList = { games: [] };
 
-let matchList = { games: [] }
-let missList = { games: [] }
+  let found = false;
+  for (
+    let indexCheevo = 0;
+    indexCheevo < achievements.games.length;
+    indexCheevo++
+  ) {
+    found = false;
+    for (let indexArch = 0; indexArch < archives.games.length; indexArch++) {
+      if (indexArch == archives.games.length - 1 && !found) {
+        console.log(
+          "Match NOT Found:",
+          achievements.games[indexCheevo].name +
+            " " +
+            achievements.games[indexCheevo].keywords
+        );
+        missList.games.push(achievements.games[indexCheevo]);
+      }
 
-let found
-
-for (let indexCheevo = 0; indexCheevo < gamesWithAchievements.games.length; indexCheevo++) {
-    found = false
-    for (let indexGame = 0; indexGame < gamesWithLinks.games.length; indexGame++) {
-
-        if (indexGame == gamesWithLinks.games.length - 1 && !found) {
-            console.log("Match NOT Found: " + gamesWithAchievements.games[indexCheevo].keywords)
-            missList.games.push(gamesWithAchievements.games[indexCheevo])
-        }
-
-        if (gamesWithAchievements.games[indexCheevo].keywords == gamesWithLinks.games[indexGame].keywords) {
-            //console.log("Match Found: " + gamesWithLinks.games[indexGame].keywords)
-            matchList.games.push(gamesWithLinks.games[indexGame])
-            found = true
-            //break
-        }
+      if (
+        achievements.games[indexCheevo].keywords ==
+        archives.games[indexArch].keywords
+      ) {
+        //console.log("Match Found: " + archives.games[indexArch].keywords);
+        matchList.games.push(archives.games[indexArch]);
+        found = true;
+      }
     }
+  }
+  let matchPercent =
+    (matchList.games.length /
+      (matchList.games.length + missList.games.length)) *
+    100;
+  let missPercent =
+    (missList.games.length / (matchList.games.length + missList.games.length)) *
+    100;
+
+  console.log("---------------");
+  console.log("Matches TOTAL: " + matchList.games.length);
+  console.log("Matches %: " + matchPercent.toFixed(0) + "%");
+  console.log("---------------");
+  console.log("Misses TOTAL: " + missList.games.length);
+  console.log("Misses %: " + missPercent.toFixed(0) + "%");
 }
 
-fs.writeFile(FILE_GAMES_WITH_MATCH_LIST, JSON.stringify(matchList, null, 2), (err) => {
-    if (err) throw err;
+Promise.all([loadAchievements(), loadArchives()]).then((x) => {
+  doMissAndMatch(x);
 });
-
-let matchPercent = matchList.games.length / (matchList.games.length + missList.games.length) * 100
-let missPercent = missList.games.length / (matchList.games.length + missList.games.length) * 100
-
-console.log("---------------")
-console.log("Matches TOTAL: " + matchList.games.length)
-console.log("Matches %: " + matchPercent.toFixed(0) + "%")
-console.log("---------------")
-console.log("Misses TOTAL: " + missList.games.length)
-console.log("Misses %: " + missPercent.toFixed(0) + "%")
