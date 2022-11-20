@@ -2,6 +2,14 @@ const fs = require("fs");
 const got = require("got");
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
+const https = require("https");
+var fsExtra = require("fs-extra");
+const fetch = require("node-fetch");
+const cliProgress = require("cli-progress");
+const request = require("request");
+var http = require("http-get");
+const _async = require("async");
+const ProgressBar = require("progress");
 
 const URL_ACHIEVEMENTS = "https://retroachievements.org/gameList.php?c=12";
 const QUERY_SELECTOR_ACHIEVEMENTS = ".table-wrapper td.w-full a";
@@ -12,6 +20,61 @@ const QUERY_SELECTOR_ARCHIVES = ".directory-listing-table a";
 const FILE_GAMES_WITH_ARCHIVES = "psxGamesWithLinks.json";
 
 const FILE_GAMES_WITH_MATCH_LIST = "matchList.json";
+
+class Downloader {
+  constructor() {
+    this.q = _async.queue(this.singleFile, 4);
+
+    // assign a callback
+    this.q.drain(function () {
+      console.log("all items have been processed");
+    });
+
+    // assign an error callback
+    this.q.error(function (err, task) {
+      console.error("task experienced an error", task);
+    });
+  }
+
+  downloadFiles(links) {
+    for (let link of links) {
+      this.q.push(link);
+    }
+  }
+
+  singleFile(link, cb) {
+    let file = request(link);
+    let bar;
+    file.on("response", (res) => {
+      const len = parseInt(res.headers["content-length"], 10);
+      console.log("Downloading: ", link)
+      bar = new ProgressBar("  Downloading [:bar] :rate/bps :percent :etas", {
+        complete: "=",
+        incomplete: " ",
+        width: 40,
+        total: len,
+      });
+      file.on("data", (chunk) => {
+        bar.tick(chunk.length);
+      });
+      file.on("end", () => {
+        console.log("\n");
+        cb();
+      });
+    });
+    file.pipe(fs.createWriteStream(link.name));
+  }
+}
+
+const dl = new Downloader();
+
+function downloadAllGames(list) {
+  let urlArr = [];
+  list.games.forEach((item) => {
+    urlArr.push(item);
+  });
+  dl.downloadFiles([urlArr[0]]);
+}
 
 function simplify(name) {
   // Remover nome alternativo
@@ -37,41 +100,43 @@ function simplify(name) {
     .replaceAll("(EN,JA,FR,DE)", "")
     .replaceAll("(EN,FR,DE,SV)", "")
     .replaceAll("2ND", "SECOND")
-    .replaceAll("(Arcade Disc)", "")
+    .replaceAll("(Arcade Disc)", "");
 
   // Tratar o caso de "Bugs Life, A" e "Smurfs, The"
   if (clearName.split(",").length > 1) {
     clearName = clearName.split(",")[1] + clearName.split(",")[0];
   }
 
-  return clearName
-    // Discos
-    .replaceAll("DISC 1", "")
-    .replaceAll("DISC 2", "")
-    .replaceAll("DISC 3", "")
-    .replaceAll("DISC 4", "")
+  return (
+    clearName
+      // Discos
+      .replaceAll("DISC 1", "")
+      .replaceAll("DISC 2", "")
+      .replaceAll("DISC 3", "")
+      .replaceAll("DISC 4", "")
 
-    // Prefixos que podem atrapalhar
-    .replaceAll("WALT", "")
-    .replaceAll("DISNEYS", "")
-    .replaceAll("DISNEY'S", "")
-    .replaceAll("DISNEY", "")
-    .replaceAll("PIXAR", "")
+      // Prefixos que podem atrapalhar
+      .replaceAll("WALT", "")
+      .replaceAll("DISNEYS", "")
+      .replaceAll("DISNEY'S", "")
+      .replaceAll("DISNEY", "")
+      .replaceAll("PIXAR", "")
 
-    // Caracteres em geral
-    .replaceAll("|", "")
-    .replaceAll(":", "")
-    .replaceAll("&", "")
-    .replaceAll(",", "")
-    .replaceAll(".", "")
-    .replaceAll("'", "")
-    .replaceAll("-", "")
-    .replaceAll("!", "")
-    .replaceAll("(", "")
-    .replaceAll(")", "")
-    .replaceAll("[", "")
-    .replaceAll("]", "")
-    .replaceAll(" ", "")
+      // Caracteres em geral
+      .replaceAll("|", "")
+      .replaceAll(":", "")
+      .replaceAll("&", "")
+      .replaceAll(",", "")
+      .replaceAll(".", "")
+      .replaceAll("'", "")
+      .replaceAll("-", "")
+      .replaceAll("!", "")
+      .replaceAll("(", "")
+      .replaceAll(")", "")
+      .replaceAll("[", "")
+      .replaceAll("]", "")
+      .replaceAll(" ", "")
+  );
 }
 
 function loadAchievements() {
@@ -175,6 +240,8 @@ function doMissAndMatch(arr) {
   console.log("---------------");
   console.log("Misses TOTAL: " + missList.games.length);
   console.log("Misses %: " + missPercent.toFixed(0) + "%");
+
+  downloadAllGames(matchList);
 }
 
 Promise.all([loadAchievements(), loadArchives()]).then((x) => {
