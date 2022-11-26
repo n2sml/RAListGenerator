@@ -23,6 +23,7 @@ class Downloader {
   }
 
   downloadFiles(links) {
+    console.log("Montando Lista de Download:")
     for (let link of links) {
       !fs.existsSync(link.name)
         ? this.q.push(link)
@@ -36,9 +37,9 @@ class Downloader {
 
     file.on("response", (response) => {
       const length = parseInt(response.headers["content-length"], 10);
-      console.log("Baixando Arquivo: ", link.name);
+      console.log("Baixando Arquivo:", link.name);
 
-      bar = new ProgressBar("Progresso => :bar :percent", {
+      bar = new ProgressBar("Progresso: [:bar :percent]", {
         complete: "=",
         incomplete: " ",
         width: 40,
@@ -46,7 +47,7 @@ class Downloader {
       });
       file.on("data", (chunk) => bar.tick(chunk.length));
       file.on("end", () => {
-        console.log(`Download do arquivo ${link.name} concluido.`);
+        console.log(`Download do arquivo ${link.name} concluido. \n`);
         callback();
       });
     });
@@ -56,7 +57,7 @@ class Downloader {
 
 const downloader = new Downloader();
 
-function simplify(name) {
+const simplify = name => {
   // Remover nome alternativo
   name = name.split("|")[0];
 
@@ -120,7 +121,7 @@ function simplify(name) {
   );
 }
 
-function downloadAllGames(list) {
+const downloadAllGames = list => {
   let urlList = [];
   list.games.forEach((item) => {
     urlList.push(item);
@@ -128,7 +129,7 @@ function downloadAllGames(list) {
   downloader.downloadFiles(urlList);
 }
 
-function getCollectionByUrl(url) {
+const getCollectionByUrl = url => {
   return got(url)
     .then((response) => {
       return new jsdom.JSDOM(response.body);
@@ -153,7 +154,7 @@ function getCollectionByUrl(url) {
     });
 }
 
-function loadAchievements() {
+const loadAchievements = () => {
   return got(URL_ACHIEVEMENTS)
     .then((response) => {
       return new jsdom.JSDOM(response.body);
@@ -179,7 +180,7 @@ function loadAchievements() {
     });
 }
 
-function loadArchives() {
+const loadArchives = () => {
   let promises = [];
 
   for (let index = 1; index < ARCHIVES_SIZE + 1; index++) {
@@ -197,7 +198,7 @@ function loadArchives() {
   });
 }
 
-function doMissAndMatch(array) {
+const doMissAndMatch = array => {
   const achievements = array[0];
   const archives = array[1];
   let missList = { games: [] };
@@ -217,21 +218,14 @@ function doMissAndMatch(array) {
         }
         if (achievementGame.keywords == archiveGame.keywords) {
           matchList.games.push(archiveGame);
-          if (!archiveGame.name.toUpperCase().includes("DISC")) {
-            found = true;
-          }
+          found = true
         }
       }
     }
   }
-
-  console.log("\n");
-  console.log("---------------");
   console.log("Jogos Encontrados: " + matchList.games.length);
-  console.log("---------------");
   console.log("Jogos Não Encontrados: " + missList.games.length);
   console.log("\n");
-
   downloadAllGames(matchList);
 }
 
