@@ -230,5 +230,5 @@ const doMissAndMatch = array => {
 }
 
 Promise.all([loadAchievements(), loadArchives()]).then((x) => {
-  doMissAndMatch(x);
+  doMissAndMatch(x)
 });
