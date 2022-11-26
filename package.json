@@ -16,18 +16,13 @@
   "license": "ISC",
   "dependencies": {
     "async": "^3.2.4",
-    "cheerio": "^1.0.0-rc.12",
-    "cli-progress": "^3.11.2",
     "fs": "^0.0.1-security",
-    "fs-extra": "^10.1.0",
     "got": "11.8.5",
-    "http": "^0.0.1-security",
-    "http-get": "^0.5.10",
-    "https": "^1.0.0",
     "jsdom": "^20.0.2",
-    "node-fetch": "^2.6.7",
-    "nodejs-file-downloader": "^4.10.2",
     "progress": "^2.0.3",
     "request": "^2.88.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.28.0"
   }
 }
