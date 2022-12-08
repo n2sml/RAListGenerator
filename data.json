@@ -1,0 +1,28 @@
+{
+    "consoles": [
+        {
+            "name":"Playstation 1",
+            "achievementsId":"12",
+            "archivesLink":"https://archive.org/download/redump.psx",
+            "archivesQuerySelector":"",
+            "archivesPages":4,
+            "archivesPagesSufix":".p"
+        },
+        {
+            "name":"Mega Drive",
+            "achievementsId":"1",
+            "archivesLink":"https://archive.org/download/nointro.md",
+            "archivesQuerySelector":"",
+            "archivesPages":1,
+            "archivesPagesSufix":""
+        },
+        {
+            "name":"Super Nintendo",
+            "achievementsId":"3",
+            "archivesLink":"https://archive.org/download/nointro.snes",
+            "archivesQuerySelector":"",
+            "archivesPages":1,
+            "archivesPagesSufix":""
+        }
+    ]
+}

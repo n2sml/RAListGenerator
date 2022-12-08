@@ -1,15 +1,20 @@
+'use strict'
+
 const _async = require("async");
 const fs = require("fs");
 const got = require("got");
 const jsdom = require("jsdom");
 const request = require("request");
 const ProgressBar = require("progress");
+const { MultiProgressBars } = require('multi-progress-bars');
+const chalk = require('chalk');
 
-const URL_ACHIEVEMENTS = "https://retroachievements.org/gameList.php?c=12";
+const URL_ACHIEVEMENTS = "https://retroachievements.org/gameList.php?c=21";
 const QUERY_SELECTOR_ACHIEVEMENTS = ".table-wrapper td.w-full a";
-const URL_ARCHIVES = "https://archive.org/download/redump.psx";
+const URL_ARCHIVES = "https://archive.org/download/redumpSonyPlaystation2UsaGames2018Aug01";
 const QUERY_SELECTOR_ARCHIVES = ".directory-listing-table a";
 const ARCHIVES_SIZE = 4;
+const PART_SUFIX = "Part";
 
 class Downloader {
   constructor() {
@@ -38,14 +43,16 @@ class Downloader {
     file.on("response", (response) => {
       const length = parseInt(response.headers["content-length"], 10);
       console.log("Baixando Arquivo:", link.name);
-
-      bar = new ProgressBar("Progresso: [:bar :percent]", {
-        complete: "=",
-        incomplete: " ",
-        width: 40,
-        total: length,
+      const mpb = new MultiProgressBars({
+        initMessage: ' $ Example Fullstack Build ',
+        anchor: 'top',
+        persist: false,
+        border: true,
       });
-      file.on("data", (chunk) => bar.tick(chunk.length));
+
+      mpb.addTask(link.name, { type: 'percentage', barColorFn: chalk.yellow });
+
+      file.on("data", (chunk) => mpb.incrementTask(link.name, { percentage: chunk.length/length }));
       file.on("end", () => {
         console.log(`Download do arquivo ${link.name} concluido. \n`);
         callback();
@@ -55,9 +62,11 @@ class Downloader {
   }
 }
 
-const downloader = new Downloader();
 
 const simplify = name => {
+  const REGEX_VERSION = /\(V([0-9].[0-9])\w+\)/g
+  const REGEX_REGIONS = /\(([A-Z][A-Z],)+([A-Z][A-Z])\)/g
+  const REGEX_DISC = /\(DISC +[0-9]\)/g
   // Remover nome alternativo
   name = name.split("|")[0];
 
@@ -72,17 +81,16 @@ const simplify = name => {
 
     .toUpperCase()
 
-    // Extensões e versões
-    .replaceAll("ZIP", "")
     .replaceAll("(USA)", "")
-    .replaceAll("(EN,FR,DE,ES,IT)", "")
-    .replaceAll("(EN,FR,ES)", "")
-    .replaceAll("(USA)ZIP", "")
-    .replaceAll("(EN,JA,FR,DE)", "")
-    .replaceAll("(EN,FR,DE,SV)", "")
+
+    // Extensões e versões
+    .replaceAll("7Z", "")
+    .replaceAll("ZIP", "")   
+    .replaceAll(REGEX_VERSION, "")
+    .replaceAll(REGEX_REGIONS, "")
+
     .replaceAll("2ND", "SECOND")
     .replaceAll("(Arcade Disc)", "")
-    .replaceAll("(JAPAN)", "");
 
   // Tratar o caso de "Bugs Life, A" e "Smurfs, The"
   if (clearName.split(",").length > 1) {
@@ -92,12 +100,8 @@ const simplify = name => {
   return (
     clearName
       // Discos
-      .replaceAll("DISC 1", "")
-      .replaceAll("DISC 2", "")
-      .replaceAll("DISC 3", "")
-      .replaceAll("DISC 4", "")
+      .replaceAll(REGEX_DISC, "")
 
-      // Prefixos que podem atrapalhar
       .replaceAll("WALT", "")
       .replaceAll("DISNEYS", "")
       .replaceAll("DISNEY'S", "")
@@ -122,6 +126,7 @@ const simplify = name => {
 }
 
 const downloadAllGames = list => {
+  let downloader = new Downloader();
   let urlList = [];
   list.games.forEach((item) => {
     urlList.push(item);
@@ -186,7 +191,7 @@ const loadArchives = () => {
   for (let index = 1; index < ARCHIVES_SIZE + 1; index++) {
     index === 1
       ? promises.push(getCollectionByUrl(URL_ARCHIVES + "/"))
-      : promises.push(getCollectionByUrl(URL_ARCHIVES + `.p${index}/`));
+      : promises.push(getCollectionByUrl(URL_ARCHIVES + `${PART_SUFIX}${index}/`));
   }
   return Promise.all(promises).then((collections) => {
     let completeCollection = { games: [] };
@@ -223,12 +228,15 @@ const doMissAndMatch = array => {
       }
     }
   }
-  console.log("Jogos Encontrados: " + matchList.games.length);
-  console.log("Jogos Não Encontrados: " + missList.games.length);
+  //console.log("Jogos Encontrados: ", matchList.games);
+ // console.log("Jogos Não Encontrados: ", missList.games);
   console.log("\n");
   downloadAllGames(matchList);
 }
-
-Promise.all([loadAchievements(), loadArchives()]).then((x) => {
-  doMissAndMatch(x)
-});
+module.exports = {
+  function () {
+    Promise.all([loadAchievements(), loadArchives()]).then((x) => {
+      doMissAndMatch(x)
+    });  
+  }
+}

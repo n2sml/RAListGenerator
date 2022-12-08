@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "teste",
-    "start": "node index.js"
+    "start": "node main.js"
   },
   "keywords": [
     "RA",
@@ -19,6 +19,8 @@
     "fs": "^0.0.1-security",
     "got": "11.8.5",
     "jsdom": "^20.0.2",
+    "multi-progress": "^4.0.0",
+    "multi-progress-bars": "^4.3.1",
     "progress": "^2.0.3",
     "request": "^2.88.2"
   },
